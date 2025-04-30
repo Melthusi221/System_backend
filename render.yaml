@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mfi-credit-scoring-api
+    env: python
+    plan: free  
+    buildCommand: pip install -r requirements 
+    startCommand: gunicorn app.main:app --bind 0.0.0.0:10000
+    envVars:
+      - key: PORT
+        value: "10000"
