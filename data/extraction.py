@@ -1,54 +1,94 @@
-# app/data/extraction.py
-import requests
 import pandas as pd
-from datetime import date
-from config.config import load_environment
+from pathlib import Path
 
-def fetch_api_data(payload: dict) -> requests.Response:
-    """Make authenticated API request"""
-    credentials = load_environment()
-    url = 'https://wisrod.instafin.com/submit/cube.LoanAnalysisFromConfiguration'
-    return requests.post(
-        url,
-        auth=(credentials['API_USERNAME'], credentials['API_PASSWORD']),
-        json=payload
-    )
+EXCEL_PATH = r"C:\Users\HP\OneDrive\Documents\Python Scripts\MFI Credit Scoring Model\loan_data.xlsx"
 
-def process_response(response: requests.Response) -> pd.DataFrame:
-    """Process API response into DataFrame"""
-    data = response.json()
-    results = data.get('results', [])
+def extract_data(use_excel=True) -> pd.DataFrame:
+    """Main extraction pipeline with enhanced error handling"""
+    try:
+        if use_excel:
+            df = _extract_from_excel()
+        else:
+            df = _extract_from_api()
+            
+        df = _add_defaulted_target(df)
+        
+        if df is None:
+            raise ValueError("Data extraction returned None")
+        if df.empty:
+            raise ValueError("Empty DataFrame after processing")
+            
+        return df
+        
+    except Exception as e:
+        print(f"CRITICAL EXTRACTION ERROR: {str(e)}")
+        raise
+
+def _extract_from_excel() -> pd.DataFrame:
+    """Load data from Excel with validation"""
+    try:
+        path = Path(EXCEL_PATH)
+        if not path.exists():
+            raise FileNotFoundError(f"Excel file missing at {EXCEL_PATH}")
+            
+        raw_df = pd.read_excel(path, engine='openpyxl')
+        print(f"Raw data loaded: {raw_df.shape[0]} records")
+        
+        return clean_data(raw_df)
+        
+    except Exception as e:
+        print(f"EXCEL EXTRACTION FAILED: {str(e)}")
+        raise
+
+def _add_defaulted_target(df: pd.DataFrame) -> pd.DataFrame:
+    """Create Defaulted column with validation"""
+    if df is None:
+        raise ValueError("Cannot process None DataFrame")
+        
+    required_col = 'Client status (on date)'
+    if required_col not in df.columns:
+        raise KeyError(f"Missing critical column: {required_col}")
+        
+    df['Defaulted'] = df[required_col].str.contains(
+        r'(?:INACTIVE|INARREARS|BLACKLISTED)',  # Non-capturing group
+        case=False, 
+        na=False, 
+        regex=True
+    ).astype(int)
     
-    if not results:
-        raise ValueError("No results found in API response")
-    
-    df = pd.DataFrame(results)
-    df.columns = df.iloc[0]
-    df = df[1:]
+    # Validate target creation
+    if 'Defaulted' not in df.columns:
+        raise RuntimeError("Failed to create Defaulted column")
+    if df['Defaulted'].isnull().any():
+        raise ValueError("Null values in Defaulted column")
+        
     return df
-
+#Data Cleaning
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean and transform raw data"""
-    df['Maturity date date'] = pd.to_datetime(df['Maturity date date'], format='%Y-%m-%d', errors='coerce')
-    df['Schedule start date'] = pd.to_datetime(df['Schedule start date'], format='%Y-%m-%d', errors='coerce')
-    df['Difference'] = (df['Maturity date date'] - df['Schedule start date']).dt.days
-    df['Difference'] = df['Difference'].fillna(0)
-    df['Tenure'] = df['Difference']/31
-    df = df[df['Tenure'] != 0]
+    """Keep ALL required columns including Loan amount"""
+    keep_columns = [
+        'Client status (on date)',
+        'Difference', 
+        'Tenure',
+        'Loan purpose',           # Raw column name from Excel
+        'Loan collateral types',  # Raw column name from Excel
+        'Loan amount',
+        'Interest rate' ,
+        'Client age',
+        'Loan Cycle',
+        'Client gender'                                                                                                                                                                                                        # MUST BE PRESENT <--- Add this line
+    ]
     
-    return df
-
-def extract_data() -> pd.DataFrame:
-    """Main extraction pipeline"""
-    payload = {
-        "date": date.today().strftime("%Y-%m-%d"),
-        "configurationID": "30166d2d-ebdd-435c-8756-a74d00c4418f",
-        # ... rest of payload ...
-    }
+    clean_df = df[keep_columns].copy()
     
-    response = fetch_api_data(payload)
-    if response.status_code != 200:
-        raise ConnectionError(f"API request failed with status {response.status_code}")
+    # Rename to match FEATURES config
+    clean_df = clean_df.rename(columns={
+        'Loan purpose': 'Loan Type',
+        'Loan collateral types': 'Collateral_Type'
+    })
     
-    raw_df = process_response(response)
-    return clean_data(raw_df)
+    # Convert numeric columns
+    for col in ['Difference', 'Tenure', 'Loan amount', 'Interest rate', 'Client age', 'Loan Cycle']:
+        clean_df[col] = pd.to_numeric(clean_df[col], errors='coerce')
+    
+    return clean_df.dropna()

@@ -21,8 +21,8 @@ model_lock = threading.Lock()
 
 # Configuration
 FEATURES = {
-    'numeric': ['Difference', 'Tenure'],
-    'categorical': ['Loan Type', 'Employment Status'],
+    'numeric': ['Difference', 'Tenure' , 'Loan amount', 'Interest rate' , 'Client age' , 'Loan Cycle'],
+    'categorical': ['Loan Type', 'Collateral_Type', 'Client gender'],  # Match renamed columns
     'target': 'Defaulted'
 }
 
@@ -35,7 +35,7 @@ def create_defaulted_target(df):
     ).astype(int)
 
 def validate_input_data(df):
-    """Validate input data structure"""
+    """Validate against RENAMED columns"""
     required_columns = FEATURES['numeric'] + FEATURES['categorical'] + ['Client status (on date)']
     missing = set(required_columns) - set(df.columns)
     if missing:

@@ -8,7 +8,7 @@ MODEL_PARAMS = {
 
 FEATURES = {
     'numeric': ['Loan amount', 'Interest rate', 'Tenure', 'Client age', 'Loan Cycle'],
-    'categorical': ['Client gender', 'Loan purpose'],
+    'categorical': ['Client gender', 'Loan Type'],
     'target': 'Defaulted'
 }
 
