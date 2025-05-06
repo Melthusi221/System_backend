@@ -11,8 +11,8 @@ from sklearn.metrics import classification_report, roc_auc_score, precision_reca
 import matplotlib.pyplot as plt
 import json  # Add this import
 
-from .data.preprocessing import build_preprocessor
-from .config.settings import MODEL_PARAMS, FEATURES, TEST_SIZE, RANDOM_STATE
+from data.preprocessing import build_preprocessor
+from config.settings import MODEL_PARAMS, FEATURES, TEST_SIZE, RANDOM_STATE
 
 def evaluate_model(model, X_test, y_test):
     """Enhanced evaluation with visualization and metrics"""
