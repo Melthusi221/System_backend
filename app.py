@@ -144,14 +144,16 @@ def predict():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """System health status."""
-    model_version = MODEL_PATH.stat().st_mtime if MODEL_PATH.exists() else None
+    """Directly verify model file exists."""
+    model_ready = MODEL_PATH.exists()  # Check file presence
+    model_version = MODEL_PATH.stat().st_mtime if model_ready else None
 
     return jsonify({
-        "status": "ready" if model else "not_ready",
+        "status": "ready" if model_ready else "not_ready",
         "model_version": model_version,
         "features": FEATURES
     })
+
 
 def load_existing_model():
     """Load model at startup if available."""
