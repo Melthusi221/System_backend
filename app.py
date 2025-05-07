@@ -82,6 +82,37 @@ def trigger_training():
     """Endpoint to start model training."""
     threading.Thread(target=train_model_async, daemon=True).start()
     return jsonify({"status": "Training started"}), 202
+from datetime import datetime
+
+training_status = {
+    "status": "idle", 
+    "start_time": None,
+    "end_time": None,
+    "error": None
+}
+
+@app.route('/training-status', methods=['GET'])
+def get_training_status():
+    return jsonify(training_status)
+
+def train_model_async():
+    global training_status
+    try:
+        training_status = {
+            "status": "running",
+            "start_time": datetime.now().isoformat(),
+            "end_time": None,
+            "error": None
+        }
+        # ... training logic ...
+        training_status["status"] = "completed"
+        training_status["end_time"] = datetime.now().isoformat()
+    except Exception as e:
+        training_status = {
+            "status": "failed",
+            "error": str(e),
+            "end_time": datetime.now().isoformat()
+        }
 
 @app.route('/predict', methods=['POST'])
 def predict():
