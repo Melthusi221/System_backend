@@ -47,32 +47,31 @@ def validate_input_data(df):
     return True
 
 def train_model_async():
-    """Background model training function."""
+    """Background training function with forced model loading."""
     global model
     try:
         print("🚀 Starting model training...")
-
+        
         df = extract_data()
         df['Defaulted'] = create_defaulted_target(df)
 
         validate_input_data(df)
 
-        # Split data
         X = df[FEATURES['numeric'] + FEATURES['categorical']]
         y = df['Defaulted']
 
-        # Train model
         trained_model, X_test, y_test = train_model(X, y)
         evaluate_model(trained_model, X_test, y_test)
 
-        # Update global model variable
-        with model_lock:
-            model = trained_model
-        
         # Ensure persistent storage
         MODEL_DIR.mkdir(parents=True, exist_ok=True)
-        joblib.dump(model, MODEL_PATH)
+        joblib.dump(trained_model, MODEL_PATH)
         print(f"✅ Model training completed and saved at {MODEL_PATH.resolve()}")
+
+        # 🔹 Force model loading right after training 🔹
+        with model_lock:
+            model = joblib.load(MODEL_PATH)
+        print(f"🔄 Model reloaded successfully.")
 
     except Exception as e:
         print(f"❌ Training failed: {str(e)}")
