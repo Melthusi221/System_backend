@@ -1,10 +1,13 @@
 services:
   - type: web
     name: mfi-credit-scoring-api
-    env: python
-    plan: free  
-    buildCommand: pip install -r requirements.txt 
-    startCommand: gunicorn app:app --bind 0.0.0.0:10000
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile  # Ensure the correct path to your Dockerfile
     envVars:
       - key: PORT
         value: "10000"
+    disk:
+      - name: model-storage
+        mountPath: /data/models
+        sizeGB: 1  # Adjust as needed for persistent storage
